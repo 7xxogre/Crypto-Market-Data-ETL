@@ -2,9 +2,7 @@ import websocket
 from datetime import datetime
 import json
 import requests
-import numpy as np
-from kafka import KafkaProducer
-
+import signal
 
 
 class CryptoCollector():
@@ -44,4 +42,65 @@ class CryptoCollector():
 
     def run(self):
         raise NotImplementedError
+
+
+
+
+import websocket
+import _thread
+import time
+from kafka import KafkaConsumer
+symbol_list = ["1INCH"]
+SYMBOL2CODE = { s: "KRW-" + s for s in symbol_list}
+
+def on_message(ws, message):
+    print(message)
+
+def on_error(ws, error):
+    print("Error: %s" % error)
+
+def on_close(ws, close_status_code, close_msg):
+    print("### closed ###")
+
+def on_open(ws):
+    dt_string = datetime.now().strftime("%Y%m%d-%H:%M:%S")
+    print(f"ws open : {dt_string}")
+
+    sy = [{"ticket":"upbit-data-pipeline"}]
     
+    d = {"type":"orderbook","codes":[]}
+    for s in symbol_list:
+        d["codes"].append("{}.5".format(SYMBOL2CODE[s]))
+    sy.append(d)
+    d = {"type":"trade","codes":[]}
+    for s in symbol_list:
+        d["codes"].append("{}".format(SYMBOL2CODE[s]))
+    sy.append(d)            
+    
+    s = json.dumps(sy)
+    ws.send(s)
+stop_flag = False
+def signal_handler(sig, frame):
+    global stop_flag
+    stop_flag = True
+    try: 
+        ws.close()
+    except: 
+        pass
+if __name__ == "__main__":
+    upbit_url = "wss://api.upbit.com/websocket/v1"
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    while not stop_flag:
+        print("websocket connect : ", upbit_url, stop_flag)
+        ws = websocket.WebSocketApp(upbit_url,
+                                    on_open = on_open,
+                                    on_message = on_message,
+                                    on_error = on_error,
+                                    on_close = on_close)
+        try:
+            ws.run_forever()
+        except Exception as e:
+            print('exception!!', e)
+        finally:
+            ws.close()
