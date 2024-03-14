@@ -52,13 +52,12 @@ import json
 from kafka_producer import KafkaProducerWrapper
 ob_topic_name = "upbit_orderbook"
 tr_topic_name = "upbit_trade"
-broker_lst = ["34.64.98.119:9092", "34.47.82.250:9092", "34.22.79.101:9092"],
 ob_producer = KafkaProducerWrapper(
-    broker_lst,
+    ["ip1:9092", "ip2:9092", "ip3:9092"],
     ob_topic_name
 )
 tr_producer = KafkaProducerWrapper(
-    broker_lst,
+    ["ip1:9092", "ip2:9092", "ip3:9092"],
     tr_topic_name
 )
 symbol_list = ["BTC"]
@@ -70,7 +69,7 @@ def on_message(ws, message):
     t = time.time()
     if m['type'][0] == 't':
         tr_producer.send_message(m)
-        tr_producer.flush()
+        tr_producer
     else:
         ob_producer.send_message(m)
         ob_producer.flush()
