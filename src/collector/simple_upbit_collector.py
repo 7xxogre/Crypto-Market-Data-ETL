@@ -45,28 +45,34 @@ class CryptoCollector():
 
 
 
-
 import websocket
 import _thread
 import time
-from json import dumps
-from kafka_objects.kafka_producer import KafkaProducerWrapper
+import json
+from kafka_producer import KafkaProducerWrapper
 ob_topic_name = "upbit_orderbook"
 tr_topic_name = "upbit_trade"
 ob_producer = KafkaProducerWrapper(
-    ["34.64.98.119:9092", "34.64.145.172:9092", "34.64.252.120:9092"],
+    ["ip1:9092", "ip2:9092", "ip3:9092"],
     ob_topic_name
 )
 tr_producer = KafkaProducerWrapper(
-    ["34.64.98.119:9092", "34.64.145.172:9092", "34.64.252.120:9092"],
+    ["ip1:9092", "ip2:9092", "ip3:9092"],
     tr_topic_name
 )
-symbol_list = ["ETH"]
+symbol_list = ["BTC"]
 
 SYMBOL2CODE = { s: "KRW-" + s for s in symbol_list}
 
 def on_message(ws, message):
-    print(message)
+    m = json.loads(message)
+    t = time.time()
+    if m['type'][0] == 't':
+        tr_producer.send_message(m)
+        tr_producer
+    else:
+        ob_producer.send_message(m)
+        ob_producer.flush()
 
 def on_error(ws, error):
     print("Error: %s" % error)
