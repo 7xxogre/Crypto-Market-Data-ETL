@@ -52,12 +52,14 @@ import json
 from kafka_producer import KafkaProducerWrapper
 ob_topic_name = "upbit_orderbook"
 tr_topic_name = "upbit_trade"
+brokers = ["ip1:9092", "ip2:9092", "ip3:9092"]
+
 ob_producer = KafkaProducerWrapper(
-    ["ip1:9092", "ip2:9092", "ip3:9092"],
+    brokers,
     ob_topic_name
 )
 tr_producer = KafkaProducerWrapper(
-    ["ip1:9092", "ip2:9092", "ip3:9092"],
+    brokers,
     tr_topic_name
 )
 symbol_list = ["BTC"]
@@ -97,6 +99,8 @@ def on_open(ws):
     
     s = json.dumps(sy)
     ws.send(s)
+
+    
 stop_flag = False
 def signal_handler(sig, frame):
     global stop_flag
