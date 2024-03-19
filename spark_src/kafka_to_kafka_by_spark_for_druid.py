@@ -1,11 +1,12 @@
 from pyspark.sql import SparkSession
+import pyspark.sql.functions as func
 from pyspark.sql.functions import from_json, col, current_date
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, DoubleType, ArrayType
 
 import threading
 
 # spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 kafka_spark_consumer.py
-kafka_bootstrap_servers = "kafka_brokder1:9092,kafka_brokder2:9092,kafka_brokder3:9092"
+kafka_bootstrap_servers = "broker_ip1:9092,broker_ip2:9092,broker_ip3:9092"
 upbit_orderbook_topic = "upbit_orderbook"
 upbit_trade_topic = "upbit_trade"
 
@@ -66,6 +67,27 @@ transformed_trade_df = trade_df.selectExpr("CAST(value AS STRING)") \
 date_orderbook_df = transformed_orderbook_df.withColumn("processing_date", current_date())
 date_trade_df = transformed_trade_df.withColumn("processing_date", current_date())
 
+last_ob_df = date_orderbook_df.groupBy("code").agg( 
+                            func.last(col("data.code")).alias("code"), 
+                            func.last(col("data.orderbook_units[0].ask_price")).alias("ask_price"), 
+                            func.last(col("data.orderbook_units[0].bid_price")).alias("bid_price"), 
+                            func.last(col("data.timestamp")).alias("upbit_server_time"), 
+                            func.last(col("processing_date")).alias("our_time") 
+                        )
+processed_tr_df = date_trade_df.groupBy("code").agg(
+                            func.first(col("data.trade_price")).alias("open"),
+                            func.max(col("data.trade_price")).alias("high"),
+                            func.min(col("data.trade_price")).alias("low"),
+                            func.last(col("data.trade_price")).alias("close"),
+                            func.last(col("data.timestamp")).alias("upbit_server_time"),
+                            func.last(col("data.trade_timestamp")).alias("trade_time"),
+                            func.sum(col("data.trade_volume")).alias("total_trade_volume"),
+                            func.sum(func.when(col("ask_bid") == "ASK", col("trade_volume")).otherwise(0)).alias("total_ask_volume"),
+                            func.sum(func.when(col("ask_bid") == "BID", col("trade_volume")).otherwise(0)).alias("total_bid_volume")
+                        )
+
+
+
 ob_query = date_orderbook_df.writeStream \
                         .format("kafka") \
                         .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
@@ -77,7 +99,7 @@ ob_query = date_orderbook_df.writeStream \
 tr_query = date_trade_df.writeStream \
                         .format("kafka") \
                         .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
-                        .option("topic", "processed_upbit_orderbook") \
+                        .option("topic", "processed_upbit_trade") \
                         .option("checkpointLocation", "/path/to/checkpoint/upbit_tr") \
                         .trigger(processingTime = "2 seconds") \
                         .start()
