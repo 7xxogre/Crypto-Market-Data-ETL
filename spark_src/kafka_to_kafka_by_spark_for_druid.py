@@ -6,7 +6,7 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType, 
 import threading
 
 # spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 kafka_spark_consumer.py
-kafka_bootstrap_servers = "broker_ip1:9092,broker_ip2:9092,broker_ip3:9092"
+kafka_bootstrap_servers = "34.64.107.102:9092,34.22.77.51:9092,34.64.167.7:9092"
 upbit_orderbook_topic = "upbit_orderbook"
 upbit_trade_topic = "upbit_trade"
 
@@ -61,7 +61,7 @@ transformed_orderbook_df = orderbook_df.selectExpr("CAST(value AS STRING)") \
                                         .select(from_json(col("value"), orderbookSchema).alias("data")) \
                                         .select("data.type", "data.code", "data.timestamp", "data.total_ask_size", "data.total_bid_size", "data.orderbook_units")
 transformed_trade_df = trade_df.selectExpr("CAST(value AS STRING)") \
-                                .select(from_json(col("value"), orderbookSchema).alias("data")) \
+                                .select(from_json(col("value"), tradeSchema).alias("data")) \
                                 .select("data.type", "data.code", "data.timestamp", "data.trade_timestamp", "data.trade_price", "data.trade_volume", "data.ask_bid")
 
 date_orderbook_df = transformed_orderbook_df.withColumn("processing_date", current_date())
