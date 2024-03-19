@@ -70,7 +70,7 @@ date_trade_df = transformed_trade_df.withColumn("processing_date", current_date(
 # checkpoint는 다르게 해야해!!! 같이 하면 나중꺼밖에 저장이 안됨
 # gcs 이름 설정해주기!!!
 query1 = date_orderbook_df.writeStream \
-                    .format("parquet") \
+                    .format("json") \
                     .option("checkpointLocation", "gs://gcs-name/checkpoints/upbit/orderbook/") \
                     .option("path", "gs://gcs-name/raw-data/upbit/orderbook/") \
                     .partitionBy("processing_date", "code") \
@@ -78,7 +78,7 @@ query1 = date_orderbook_df.writeStream \
                     .start()
 
 query2 = date_trade_df.writeStream \
-                    .format("parquet") \
+                    .format("json") \
                     .option("checkpointLocation", "gs://gcs-name/checkpoints/upbit/trade/") \
                     .option("path", "gs://gcs-name/raw-data/upbit/trade/") \
                     .partitionBy("processing_date", "code") \
