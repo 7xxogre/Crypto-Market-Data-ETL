@@ -1,20 +1,11 @@
-"""
-    간단히 Spark Structured Streaming을 사용해
-    콘솔창에 받은 데이터를 뿌리는 형식
-
-    테스트 구현임을 감안해 Upbit에 대해서만 적용
-
-    spark-submit 시 콘솔에 아래 명령어처럼 kafka를 패키지로 추가해줘야함
-    spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 kafka_spark_consumer_test_code.py
-
-    이때 spark 버전과 scala 버전에 주의
-"""
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import expr, from_json, col
+from pyspark.sql.functions import expr, from_json, col, current_date
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, DoubleType, ArrayType
 
-
-kafka_bootstrap_servers = "broker_ip1:9092,broker_ip2:9092,broker_ip3:9092"
+import threading
+# 아래 명령어처럼 kafka를 추가해 스파크를 실행해 주어야함.
+# spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 kafka_spark_consumer.py
+kafka_bootstrap_servers = "kafka_brokder1:9092,kafka_brokder2:9092,kafka_brokder3:9092"
 upbit_orderbook_topic = "upbit_orderbook"
 upbit_trade_topic = "upbit_trade"
 
@@ -67,23 +58,43 @@ orderbookSchema = StructType([
 
 transformed_orderbook_df = orderbook_df.selectExpr("CAST(value AS STRING)") \
                     .select(from_json(col("value"), orderbookSchema).alias("data")) \
-                    .select("data.code", "data.timestamp", "data.total_ask_size", "data.total_bid_size", "data.orderbook_units")
+                    .select("data.type", "data.code", "data.timestamp", "data.total_ask_size", "data.total_bid_size", "data.orderbook_units")
 
 transformed_trade_df = trade_df.selectExpr("CAST(value AS STRING)") \
                     .select(from_json(col("value"), tradeSchema).alias("data")) \
-                    .select("data.code", "data.timestamp", "data.trade_timestamp", "data.trade_price", "data.trade_volume", "data.ask_bid")
+                    .select("data.type", "data.code", "data.timestamp", "data.trade_timestamp", "data.trade_price", "data.trade_volume", "data.ask_bid")
+
+date_orderbook_df = transformed_orderbook_df.withColumn("processing_date", current_date())
+date_trade_df = transformed_trade_df.withColumn("processing_date", current_date())
+
+# checkpoint는 다르게 해야해!!! 같이 하면 나중꺼밖에 저장이 안됨
+# gcs 이름 설정해주기!!!
+query1 = date_orderbook_df.writeStream \
+                    .format("parquet") \
+                    .option("checkpointLocation", "gs://gcs-name/checkpoints/upbit/orderbook/") \
+                    .option("path", "gs://gcs-name/raw-data/upbit/orderbook/") \
+                    .partitionBy("processing_date", "code") \
+                    .trigger(processingTime='30 minutes') \
+                    .start()
+
+query2 = date_trade_df.writeStream \
+                    .format("parquet") \
+                    .option("checkpointLocation", "gs://gcs-name/checkpoints/upbit/trade/") \
+                    .option("path", "gs://gcs-name/raw-data/upbit/trade/") \
+                    .partitionBy("processing_date", "code") \
+                    .trigger(processingTime='30 minutes') \
+                    .start()
 
 
-query1 = transformed_orderbook_df.writeStream.outputMode("append") \
-    .format("console") \
-    .trigger(processingTime='10 seconds') \
-    .start()
+# query1.awaitTermination()
+# query2.awaitTermination()
+def awaitTermination(query):
+    query.awaitTermination()
 
-query2 = transformed_trade_df.writeStream.outputMode("append") \
-    .format("console") \
-    .trigger(processingTime='10 seconds') \
-    .start()
+thread1 = threading.Thread(target = awaitTermination, args=(query1,))
+thread2 = threading.Thread(target = awaitTermination, args=(query2,))
 
-
-query1.awaitTermination()
-query2.awaitTermination()
+thread1.start()
+thread2.start()
+thread1.join()
+thread2.join()
