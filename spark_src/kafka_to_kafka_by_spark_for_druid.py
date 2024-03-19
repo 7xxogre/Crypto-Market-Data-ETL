@@ -67,7 +67,7 @@ transformed_trade_df = trade_df.selectExpr("CAST(value AS STRING)") \
 date_orderbook_df = transformed_orderbook_df.withColumn("processing_date", current_date())
 date_trade_df = transformed_trade_df.withColumn("processing_date", current_date())
 
-last_ob_df = date_orderbook_df.groupBy("code").agg( 
+processed_ob_df = date_orderbook_df.groupBy("code").agg( 
                             func.last(col("data.code")).alias("code"), 
                             func.last(col("data.orderbook_units[0].ask_price")).alias("ask_price"), 
                             func.last(col("data.orderbook_units[0].bid_price")).alias("bid_price"), 
@@ -88,7 +88,7 @@ processed_tr_df = date_trade_df.groupBy("code").agg(
 
 
 
-ob_query = date_orderbook_df.writeStream \
+ob_query = processed_ob_df.writeStream \
                         .format("kafka") \
                         .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
                         .option("topic", "processed_upbit_orderbook") \
@@ -96,7 +96,7 @@ ob_query = date_orderbook_df.writeStream \
                         .trigger(processingTime = "2 seconds") \
                         .start()
 
-tr_query = date_trade_df.writeStream \
+tr_query = processed_tr_df.writeStream \
                         .format("kafka") \
                         .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
                         .option("topic", "processed_upbit_trade") \
