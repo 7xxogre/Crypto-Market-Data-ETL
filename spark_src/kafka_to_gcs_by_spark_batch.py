@@ -2,8 +2,7 @@ import argparse
 import json
 import pickle
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import expr, from_json, col, current_date
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, DoubleType, ArrayType
+from pyspark.sql.functions import from_json, col, current_date
 from kafka import KafkaConsumer, TopicPartition
 from datetime import timedelta
 
@@ -63,7 +62,7 @@ if start_offset < end_offset:
 
     transformed_df = df.selectExpr("CAST(value AS STRING)") \
                         .select(from_json(col("value"), schema).alias("data"))
-    date_df = transformed_df.withColumn("start_offset", start_offset).withColumn("end_offset", end_offset)
+    date_df = transformed_df.withColumn("start_offset", start_offset).withColumn("end_offset", end_offset).withColumn("processing_date", current_date())
 
     date_df.write \
         .format("json") \
