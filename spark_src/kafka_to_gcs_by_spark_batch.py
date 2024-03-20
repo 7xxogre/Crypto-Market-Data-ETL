@@ -3,6 +3,7 @@ import json
 import pickle
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col, current_date
+from pyspark.sql.types import StructType
 from kafka import KafkaConsumer, TopicPartition
 from datetime import timedelta
 
@@ -25,6 +26,14 @@ def get_kafka_offset(bootstrap_servers, topic_name, num_partition, execution_dat
     return {"start_offset": start_offsets[topic_partitions[0]].offset, 
             "end_offset": end_offsets[topic_partitions[0]].offset}
 
+def load_schema(file_path: str) -> StructType:
+    with open(file_path, 'r') as file:
+        json_schema = file.read()
+        # JSON 문자열을 StructType으로 변환
+        schema = StructType.fromJson(json.loads(json_schema))
+    return schema
+
+
 parser = argparse.ArgumentParser(description='Spark job arguments')
 parser.add_argument('--kafka-bootstrap-server-list-path', required=True, type=str, help='Kafka broker ip list path')
 parser.add_argument('--topic-name', required=True, type=str, help='Kafka topic name')
@@ -37,7 +46,6 @@ parser.add_argument('--app-name', required=True, type=str, help='Spark app name'
 args = parser.parse_args()
 
 
-
 with open(args.kafka_bootstrap_server_list_path, 'r') as f:
     kafka_bootstrap_servers = [line.strip() for line in f.readlines()]
     if len(kafka_bootstrap_servers) < 1:
@@ -48,8 +56,7 @@ start_offset, end_offset = offsets['start_offset'], offsets['end_offset']
 
 if start_offset < end_offset:
     # schema load
-    with open(args.schema_path, 'rb') as f:
-        schema = pickle.load(f)
+    schema = load_schema(args.schema_path)
 
     spark = SparkSession.builder.appName(args.app_name).getOrCreate()
     df = spark.read \
