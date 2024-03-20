@@ -9,6 +9,7 @@
 
     이때 spark 버전과 scala 버전에 주의
 """
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import expr, from_json, col
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, DoubleType, ArrayType
