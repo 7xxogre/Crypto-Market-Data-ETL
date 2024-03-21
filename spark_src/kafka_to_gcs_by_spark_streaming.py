@@ -36,7 +36,8 @@ tradeSchema = StructType([
     StructField("change", StringType(), True),
     StructField("change_price", DoubleType(), True),
     StructField("sequential_id", LongType(), True),
-    StructField("stream_type", StringType(), True)
+    StructField("stream_type", StringType(), True),
+    StructField("arrive_time", LongType(), True)
 ])
 
 orderbookUnitSchema = StructType([
@@ -53,16 +54,17 @@ orderbookSchema = StructType([
     StructField("total_bid_size", DoubleType(), True),
     StructField("orderbook_units", ArrayType(orderbookUnitSchema), True),
     StructField("stream_type", StringType(), True),
-    StructField("level", IntegerType(), True)
+    StructField("level", IntegerType(), True),
+    StructField("arrive_time", LongType(), True)
 ])
 
 transformed_orderbook_df = orderbook_df.selectExpr("CAST(value AS STRING)") \
                     .select(from_json(col("value"), orderbookSchema).alias("data")) \
-                    .select("data.type", "data.code", "data.timestamp", "data.total_ask_size", "data.total_bid_size", "data.orderbook_units")
+                    .select("data.type", "data.code", "data.timestamp", "data.total_ask_size", "data.total_bid_size", "data.orderbook_units", "data.arrive_time")
 
 transformed_trade_df = trade_df.selectExpr("CAST(value AS STRING)") \
                     .select(from_json(col("value"), tradeSchema).alias("data")) \
-                    .select("data.type", "data.code", "data.timestamp", "data.trade_timestamp", "data.trade_price", "data.trade_volume", "data.ask_bid")
+                    .select("data.type", "data.code", "data.timestamp", "data.trade_timestamp", "data.trade_price", "data.trade_volume", "data.ask_bid", "data.arrive_time")
 
 date_orderbook_df = transformed_orderbook_df.withColumn("processing_date", current_date())
 date_trade_df = transformed_trade_df.withColumn("processing_date", current_date())
