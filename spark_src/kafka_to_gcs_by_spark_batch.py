@@ -3,9 +3,21 @@ import json
 import pickle
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col, current_date
-from pyspark.sql.types import StructType
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, DoubleType, ArrayType
 from kafka import KafkaConsumer, TopicPartition
 from datetime import timedelta
+from google.cloud import storage
+
+def download_blob(bucket_name, source_blob_name):
+    """GCS에서 파일 내용을 다운로드하고 출력합니다."""
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(source_blob_name)
+    
+    # Blob의 내용을 문자열로 다운로드
+    contents = blob.download_as_string()
+    
+    return contents.decode("utf-8").split()
 
 def get_kafka_offset(bootstrap_servers, topic_name, num_partition, execution_date, interval_hours):
     consumer = KafkaConsumer(
@@ -26,42 +38,67 @@ def get_kafka_offset(bootstrap_servers, topic_name, num_partition, execution_dat
     return {"start_offset": start_offsets[topic_partitions[0]].offset, 
             "end_offset": end_offsets[topic_partitions[0]].offset}
 
-def load_schema(file_path: str) -> StructType:
-    with open(file_path, 'r') as file:
-        json_schema = file.read()
-        # JSON 문자열을 StructType으로 변환
-        schema = StructType.fromJson(json.loads(json_schema))
-    return schema
+def load_schema(topic_name: str) -> StructType:
+    if "upbit_trade" == topic_name:
+        return StructType([
+            StructField("type", StringType(), True),
+            StructField("code", StringType(), True),
+            StructField("timestamp", LongType(), True),
+            StructField("trade_date", StringType(), True),
+            StructField("trade_time", StringType(), True),
+            StructField("trade_timestamp", LongType(), True),
+            StructField("trade_price", DoubleType(), True),
+            StructField("trade_volume", DoubleType(), True),
+            StructField("ask_bid", StringType(), True),
+            StructField("prev_closing_price", DoubleType(), True),
+            StructField("change", StringType(), True),
+            StructField("change_price", DoubleType(), True),
+            StructField("sequential_id", LongType(), True),
+            StructField("stream_type", StringType(), True)
+        ])
+    
+    if "upbit_orderbook" == topic_name:
+        upbitOrderbookUnitSchema = StructType([
+            StructField("ask_price", DoubleType(), True),
+            StructField("bid_price", DoubleType(), True),
+            StructField("ask_size", DoubleType(), True),
+            StructField("bid_size", DoubleType(), True),
+        ])
+        
+        return StructType([
+            StructField("type", StringType(), True),
+            StructField("code", StringType(), True),
+            StructField("timestamp", LongType(), True),
+            StructField("total_ask_size", DoubleType(), True),
+            StructField("total_bid_size", DoubleType(), True),
+            StructField("orderbook_units", ArrayType(upbitOrderbookUnitSchema), True),
+            StructField("stream_type", StringType(), True),
+            StructField("level", IntegerType(), True)
+        ])
 
 
 parser = argparse.ArgumentParser(description='Spark job arguments')
-parser.add_argument('--kafka-bootstrap-server-list-path', required=True, type=str, help='Kafka broker ip list path')
+parser.add_argument('--kafka-bootstrap-server-list-file-name', required=True, type=str, help='Kafka broker ip list file')
 parser.add_argument('--topic-name', required=True, type=str, help='Kafka topic name')
 parser.add_argument('--num-partitions', required=True, type=int, help='Number of partitions')
 parser.add_argument('--execution_date', required=True, type=str, help='Airflow task execution date')
-parser.add_argument('--schema-path', required=True, type=str, help='Data schema path')
 parser.add_argument('--gcs-name', required=True, type=str, help='Google Cloud Storage name')
 parser.add_argument('--gcs-save-path', required=True, type=str, help='Google Cloud Storage save path')
 parser.add_argument('--app-name', required=True, type=str, help='Spark app name')
 args = parser.parse_args()
 
-
-with open(args.kafka_bootstrap_server_list_path, 'r') as f:
-    kafka_bootstrap_servers = [line.strip() for line in f.readlines()]
-    if len(kafka_bootstrap_servers) < 1:
-        raise Exception(f"kafka bootstrap server path is not exists!!!! {args.kafka_bootstrap_server_list_path}")
-
-offsets = get_kafka_offset(kafka_bootstrap_servers, args.topic_name, args.num_partition, )
+kafka_bootstrap_servers = download_blob(args.gcs_name, args.kafka_bootstrap_server_list_file_name)
+kafka_bootstrap_servers_str = ",".join(kafka_bootstrap_servers)
+offsets = get_kafka_offset(kafka_bootstrap_servers_str, args.topic_name, args.num_partition, )
 start_offset, end_offset = offsets['start_offset'], offsets['end_offset']
 
 if start_offset < end_offset:
-    # schema load
-    schema = load_schema(args.schema_path)
-
     spark = SparkSession.builder.appName(args.app_name).getOrCreate()
+    # schema load
+    schema = load_schema(args.topic_name)
     df = spark.read \
             .format("kafka") \
-            .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
+            .option("kafka.bootstrap.servers", kafka_bootstrap_servers_str) \
             .option("subscribe", args.topic_name) \
             .option("startingOffsets", f"""{{"{args.topic_name}":{{"{args.num_partition}":{start_offset}}}}}""") \
             .option("endingOffsets", f"""{{"{args.topic_name}":{{"{args.num_partition}":{end_offset}}}}}""") \
