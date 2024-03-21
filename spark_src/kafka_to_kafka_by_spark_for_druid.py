@@ -64,8 +64,8 @@ transformed_trade_df = trade_df.selectExpr("CAST(value AS STRING)") \
                                 .select(from_json(col("value"), tradeSchema).alias("data")) \
                                 .select("data.code", "data.timestamp", "data.trade_timestamp", "data.trade_price", "data.trade_volume", "data.ask_bid")
 
-date_orderbook_df = transformed_orderbook_df.withColumn("timestamp", to_timestamp(from_unixtime(col("timestamp"))))
-date_trade_df = transformed_trade_df.withColumn("timestamp", to_timestamp(from_unixtime(col("timestamp"))))
+date_orderbook_df = transformed_orderbook_df.withColumn("timestamp", to_timestamp(from_unixtime(col("timestamp")/1000)))
+date_trade_df = transformed_trade_df.withColumn("timestamp", to_timestamp(from_unixtime(col("timestamp")/1000)))
 
 processed_ob_df = date_orderbook_df.withWatermark("timestamp", "10 second") \
                                     .groupBy(window(col("timestamp"), "10 second"), "code").agg(
