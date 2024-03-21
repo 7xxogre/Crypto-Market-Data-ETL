@@ -62,8 +62,8 @@ tr_producer = KafkaProducerWrapper(
     brokers,
     tr_topic_name
 )
-symbol_list = ["BTC", "ETH", "SOL"]
 
+symbol_list = ["BTC", "ETH", "SOL"]
 SYMBOL2CODE = { s: "KRW-" + s for s in symbol_list}
 
 def on_message(ws, message):
