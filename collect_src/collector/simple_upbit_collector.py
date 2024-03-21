@@ -62,16 +62,17 @@ tr_producer = KafkaProducerWrapper(
     brokers,
     tr_topic_name
 )
-symbol_list = ["BTC"]
 
+symbol_list = ["BTC", "ETH", "SOL"]
 SYMBOL2CODE = { s: "KRW-" + s for s in symbol_list}
 
 def on_message(ws, message):
     m = json.loads(message)
     t = time.time()
+    m['arrive_time'] = t
     if m['type'][0] == 't':
         tr_producer.send_message(m)
-        tr_producer
+        tr_producer.flush()
     else:
         ob_producer.send_message(m)
         ob_producer.flush()
