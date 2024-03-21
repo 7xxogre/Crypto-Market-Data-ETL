@@ -90,7 +90,7 @@ processed_tr_df = date_trade_df.withWatermark("timestamp", "10 second") \
                                     func.sum(col("trade_volume")).alias("total_trade_volume"),
                                     func.sum(func.when(col("ask_bid") == "ASK", col("trade_volume")).otherwise(0)).alias("total_ask_volume"),
                                     func.sum(func.when(col("ask_bid") == "BID", col("trade_volume")).otherwise(0)).alias("total_bid_volume"),
-                                    func.last(col("arrive_time")).alias("arrive_time")
+                                    func.last(col("arrive_time")).alias("arrive_time"),
                                     func.mean(col("time_diff")).alias("time_diff")
                                 )
 
