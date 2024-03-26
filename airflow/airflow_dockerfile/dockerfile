@@ -1,0 +1,29 @@
+FROM apache/airflow:2.8.2
+USER root
+RUN apt-get update \
+        && apt-get install -y --no-install-recommends \
+           gcc \
+           g++ \
+           libsasl2-dev \
+           heimdal-dev \
+       apt-transport-https \
+       ca-certificates \
+       gnupg \
+        && echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] http://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
+        && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - \
+        && apt-get update \
+        && apt-get install google-cloud-sdk -y \
+        && apt-get autoremove -yqq --purge \
+        && apt-get clean \
+        && rm -rf /var/lib/apt/lists/*
+
+# Airflow 사용자로 전환하여 필요한 Python 패키지 설치
+USER airflow
+RUN pip install \
+        pandas==2.0.3 \
+        sqlalchemy==1.4.50 \
+        kafka-python==2.0.2 \
+    apache-airflow-providers-apache-hdfs \
+    apache-airflow-providers-apache-hive \
+        apache-airflow-providers-apache-spark \
+        apache-airflow[google]
