@@ -5,7 +5,16 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType, 
 
 import threading
 
-# spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 kafka_to_kafka_by_spark_for_druid.py
+""" 
+spark-submit \
+--packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
+--conf spark.shuffle.service.enabled=true \
+--conf spark.dynamicAllocation.enabled=true \
+--conf spark.dynamicAllocation.initialExecutors=1 \
+--conf spark.dynamicAllocation.minExecutors=1 \
+--conf spark.dynamicAllocation.maxExecutors=3
+kafka_to_kafka_by_spark_for_druid.py
+"""
 kafka_bootstrap_servers = "34.64.107.102:9092,34.22.77.51:9092,34.64.167.7:9092"
 upbit_orderbook_topic = "upbit_orderbook"
 upbit_trade_topic = "upbit_trade"
