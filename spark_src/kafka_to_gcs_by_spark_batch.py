@@ -35,7 +35,7 @@ def load_schema(topic_name: str) -> StructType:
             StructField("change_price", DoubleType(), True),
             StructField("sequential_id", LongType(), True),
             StructField("stream_type", StringType(), True),
-            StructField("arrive_time", LongType(), True)
+            StructField("arrive_time", DoubleType(), True)
         ])
     
     if "upbit_orderbook" == topic_name:
@@ -55,7 +55,7 @@ def load_schema(topic_name: str) -> StructType:
             StructField("orderbook_units", ArrayType(upbitOrderbookUnitSchema), True),
             StructField("stream_type", StringType(), True),
             StructField("level", IntegerType(), True),
-            StructField("arrive_time", LongType(), True)
+            StructField("arrive_time", DoubleType(), True)
         ])
 
 
