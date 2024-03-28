@@ -38,7 +38,7 @@ tradeSchema = StructType([
     StructField("change_price", DoubleType(), True),
     StructField("sequential_id", LongType(), True),
     StructField("stream_type", StringType(), True),
-    StructField("arrive_time", LongType(), True)
+    StructField("arrive_time", DoubleType(), True)
 ])
 
 orderbookUnitSchema = StructType([
@@ -56,7 +56,7 @@ orderbookSchema = StructType([
     StructField("orderbook_units", ArrayType(orderbookUnitSchema), True),
     StructField("stream_type", StringType(), True),
     StructField("level", IntegerType(), True),
-    StructField("arrive_time", LongType(), True)
+    StructField("arrive_time", DoubleType(), True)
 ])
 
 transformed_orderbook_df = orderbook_df.selectExpr("CAST(value AS STRING)") \
@@ -104,7 +104,7 @@ ob_query = json_ob_df.writeStream \
                         .format("kafka") \
                         .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
                         .option("topic", "processed_upbit_orderbook") \
-                        .option("checkpointLocation", "/path/to/checkpoint/upbit_ob") \
+                        .option("checkpointLocation", "/path/to/checkpoint/upbit_ob_with_arrive_time") \
                         .trigger(processingTime = "10 seconds") \
                         .start()
 
@@ -112,7 +112,7 @@ tr_query = json_tr_df.writeStream \
                         .format("kafka") \
                         .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
                         .option("topic", "processed_upbit_trade") \
-                        .option("checkpointLocation", "/path/to/checkpoint/upbit_tr") \
+                        .option("checkpointLocation", "/path/to/checkpoint/upbit_tr_with_arrive_time") \
                         .trigger(processingTime = "10 seconds") \
                         .start()
 
