@@ -47,7 +47,7 @@ tradeSchema = StructType([
     StructField("change_price", DoubleType(), True),
     StructField("sequential_id", LongType(), True),
     StructField("stream_type", StringType(), True),
-    StructField("arrive_time", LongType(), True)
+    StructField("arrive_time", DoubleType(), True)
 ])
 
 orderbookUnitSchema = StructType([
@@ -65,7 +65,7 @@ orderbookSchema = StructType([
     StructField("orderbook_units", ArrayType(orderbookUnitSchema), True),
     StructField("stream_type", StringType(), True),
     StructField("level", IntegerType(), True),
-    StructField("arrive_time", LongType(), True)
+    StructField("arrive_time", DoubleType(), True)
 ])
 
 # transformed_orderbook_df = orderbook_df.selectExpr("CAST(value AS STRING)") \
