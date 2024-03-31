@@ -89,7 +89,7 @@ date_ob_df = transformed_ob_df.withColumn("time_diff",
                             .withColumn("obi", 
                                         transformed_ob_df["orderbook_units"][0]["bid_size"] / 
                                         transformed_ob_df["orderbook_units"][0]["ask_size"]) \
-                            .withWatermark("server_datetime", "1000 second")
+                            .withWatermark("server_datetime", "15 minute")
 
 windowSpec = Window.partitionBy("code").orderBy("server_datetime") \
                 .rowsBetween(Window.unboundedPreceding, Window.currentRow)
@@ -99,10 +99,11 @@ ewma_ob_df = date_ob_df.withColumn("ewma_obi",
                                 )
 
 processed_ob_df = ewma_ob_df \
-                .groupby(window(col("server_datetime"), "1000 second"), "code") \
+                .groupby(window(col("server_datetime"), "15 minute"), "code") \
                 .agg(
                     func.expr("last(orderbook_units[0].ask_price) as ask_price"),
                     func.expr("last(orderbook_units[0].bid_price) as bid_price"),
+                    func.last(col("ewma_obi")).alias("ewma_obi"),
                     func.last(col("server_datetime")).alias("server_datetime"),
                     func.last(col("timestamp")).alias("server_time"),
                     func.last(col("arrive_time")).alias("arrive_time"),
@@ -120,7 +121,7 @@ ob_query = json_ob_df.writeStream \
                 .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
                 .option("topic", ob_processed_topic) \
                 .option("checkpointLocation", ob_chackpoint_loc) \
-                .trigger(processingTime = "10 seconds") \
+                .trigger(processingTime = "15 seconds") \
                 .start()
 
 
@@ -164,7 +165,6 @@ processed_tr_df = date_tr_df.withWatermark("server_datetime", "15 minute") \
                                 col("ask_bid") == "BID", col("trade_volume")
                         ).otherwise(0)
                     ).alias("total_bid_volume"),
-                    func.
                     func.last(col("arrive_time")).alias("arrive_time"),
                     func.mean(col("time_diff")).alias("time_diff"),
                 )
