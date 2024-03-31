@@ -154,7 +154,7 @@ processed_tr_df = date_tr_df.withWatermark("server_datetime", "15 minute") \
                     func.last(col("timestamp")).alias("server_time"),
                     func.last(col("trade_timestamp")).alias("trade_time"),
                     func.sum(col("trade_volume")).alias("total_trade_volume"),
-                    func.std(col("trade_price")).alias("volatility"),
+                    func.stddev(col("trade_price")).alias("volatility"),
                     func.sum(
                         func.when(
                             col("ask_bid") == "ASK", col("trade_volume")
@@ -165,6 +165,11 @@ processed_tr_df = date_tr_df.withWatermark("server_datetime", "15 minute") \
                                 col("ask_bid") == "BID", col("trade_volume")
                         ).otherwise(0)
                     ).alias("total_bid_volume"),
+                    func.sum(
+                        func.when(
+                            col("ask_bid") == "BID", col("trade_volume")
+                        ).otherwise(-col("trade_volume"))
+                    ).alias("tfi"),
                     func.last(col("arrive_time")).alias("arrive_time"),
                     func.mean(col("time_diff")).alias("time_diff"),
                 )
