@@ -87,7 +87,7 @@ gcloud dataproc jobs submit pyspark \
     gs://crypto-market-data-gcs/kafka_to_gcs_by_spark_batch.py \
     --cluster=spark-airflow \
     --region=asia-northeast3 \
-    --properties spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
+    --properties  spark.dynamicAllocation.enabled=true,spark.shuffle.service.enabled=true,spark.dynamicAllocation.initialExecutors=1,spark.dynamicAllocation.minExecutors=1,spark.dynamicAllocation.maxExecutors=3,spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
     -- \
     --execution-date "{{ ds }}" \
     --kafka-bootstrap-server-list-file-name 'kafka_broker_ips.txt' \
@@ -122,7 +122,7 @@ gcloud dataproc jobs submit pyspark \
     gs://crypto-market-data-gcs/kafka_to_gcs_by_spark_batch.py \
     --cluster=spark-airflow \
     --region=asia-northeast3 \
-    --properties spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
+    --properties spark.dynamicAllocation.enabled=true,spark.shuffle.service.enabled=true,spark.dynamicAllocation.initialExecutors=1,spark.dynamicAllocation.minExecutors=1,spark.dynamicAllocation.maxExecutors=3,spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
     -- \
     --execution-date "{{ ds }}" \
     --kafka-bootstrap-server-list-file-name 'kafka_broker_ips.txt' \
