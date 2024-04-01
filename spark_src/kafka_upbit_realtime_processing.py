@@ -1,7 +1,7 @@
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as func
 from pyspark.sql.functions import from_json, col, to_timestamp, from_unixtime, \
-                                window, pandas_udf, PandasUDFType, Window
+                        window, pandas_udf, PandasUDFType, Window, udf, lag, \
 from pyspark.sql.types import StructType, StructField, DoubleType, StringType, \
                                 IntegerType, LongType, ArrayType
 import threading
@@ -68,6 +68,12 @@ tradeSchema = StructType([
 def calculate_ewma(value_series):
     alpha = 0.8 
     return value_series.ewm(alpha=alpha, adjust=False).mean().iloc[-1]
+@udf(returnType=DoubleType())
+def calculate_ofi(orderbook_units):
+    last_ap, last_av = None, None
+    last_bp, last_bv = None, None
+    ofi = 0.0
+
 
 ################### orderbook ###################
 ob_df = spark.readStream \
@@ -88,8 +94,7 @@ date_ob_df = transformed_ob_df.withColumn("time_diff",
                                 to_timestamp(from_unixtime(col("timestamp") / 1000))) \
                             .withColumn("obi", 
                                         transformed_ob_df["orderbook_units"][0]["bid_size"] / 
-                                        transformed_ob_df["orderbook_units"][0]["ask_size"]) \
-                            .withWatermark("server_datetime", "15 minute")
+                                        transformed_ob_df["orderbook_units"][0]["ask_size"])
 
 windowSpec = Window.partitionBy("code").orderBy("server_datetime") \
                 .rowsBetween(Window.unboundedPreceding, Window.currentRow)
@@ -98,11 +103,13 @@ ewma_ob_df = date_ob_df.withColumn("ewma_obi",
                                     calculate_ewma(date_ob_df["obi"]).over(windowSpec)
                                 )
 
-processed_ob_df = ewma_ob_df \
-                .groupby(window(col("server_datetime"), "15 minute"), "code") \
+
+processed_ob_df = ewma_ob_df.withWatermark("server_datetime", "10 minute") \
+                .groupby(window(col("server_datetime"), "10 minute", "15 second"), "code") \
                 .agg(
                     func.expr("last(orderbook_units[0].ask_price) as ask_price"),
                     func.expr("last(orderbook_units[0].bid_price) as bid_price"),
+                    col("orderbook_units").getItem(0).alias("current_best_orderbook"),
                     func.last(col("ewma_obi")).alias("ewma_obi"),
                     func.last(col("server_datetime")).alias("server_datetime"),
                     func.last(col("timestamp")).alias("server_time"),
@@ -110,9 +117,20 @@ processed_ob_df = ewma_ob_df \
                     func.mean(col("time_diff")).alias("time_diff")
                 )
 
-json_ob_df = processed_ob_df.select(
-                    func.to_json(func.struct(*processed_ob_df.columns)
-                 ).alias('value'))
+
+partition_window = Window.partitionBy("code").orderBy("window")
+joined_df = processed_ob_df.withColumn("prev_orderbook", lag("current_orderbook", 1).over(partition_window))
+ofi_df = joined_df.withColumn("ofi", 
+    func.when(col("current_orderbook.bid_price") >= col("prev_orderbook.bid_price"), col("current_orderbook.bid_size"))
+    .otherwise(-col("prev_orderbook.bid_size")) -
+    func.when(col("current_orderbook.ask_price") <= col("prev_orderbook.ask_price"), col("current_orderbook.ask_size"))
+    .otherwise(col("prev_orderbook.ask_size"))
+)
+
+json_ob_df = ofi_df.drop("prev_orderbook", "current_orderbook") \
+                    .select(
+                        func.to_json(func.struct(*processed_ob_df.columns)
+                    ).alias('value'))
 
 ob_processed_topic = "processed_upbit_orderbook"
 ob_chackpoint_loc = "/path/to/checkpoint/upbit_ob_realtime_processing"
@@ -143,8 +161,8 @@ date_tr_df = transformed_tr_df.withColumn("time_diff",
                             .withColumn("server_datetime", 
                                 to_timestamp(from_unixtime(col("timestamp") / 1000)))
 
-processed_tr_df = date_tr_df.withWatermark("server_datetime", "15 minute") \
-                .groupby(window(col("server_datetime"), "15 minute"), "code") \
+processed_tr_df = date_tr_df.withWatermark("server_datetime", "10 minute") \
+                .groupby(window(col("server_datetime"), "10 minute", "15 second"), "code") \
                 .agg(
                     func.first(col("trade_price")).alias("open"),
                     func.max(col("trade_price")).alias("high"),
