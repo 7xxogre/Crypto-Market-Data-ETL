@@ -89,8 +89,9 @@ gcloud dataproc jobs submit pyspark \
     --region=asia-northeast3 \
     --properties  spark.dynamicAllocation.enabled=true,spark.shuffle.service.enabled=true,spark.dynamicAllocation.initialExecutors=1,spark.dynamicAllocation.minExecutors=1,spark.dynamicAllocation.maxExecutors=3,spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
     -- \
-    --execution-date "{{ ds }}" \
+    --execution-date "{{ execution_date.strftime('%Y-%m-%d %H:%M:%S') }}" \
     --kafka-bootstrap-server-list-file-name 'kafka_broker_ips.txt' \
+    --execution-date "{{ ds }}" \
     --topic-name 'upbit_orderbook' \
     --num-partitions '0' \
     --gcs-name 'crypto-market-data-gcs' \
@@ -124,8 +125,9 @@ gcloud dataproc jobs submit pyspark \
     --region=asia-northeast3 \
     --properties spark.dynamicAllocation.enabled=true,spark.shuffle.service.enabled=true,spark.dynamicAllocation.initialExecutors=1,spark.dynamicAllocation.minExecutors=1,spark.dynamicAllocation.maxExecutors=3,spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
     -- \
-    --execution-date "{{ ds }}" \
+    --execution-date "{{ execution_date.strftime('%Y-%m-%d %H:%M:%S') }}" \
     --kafka-bootstrap-server-list-file-name 'kafka_broker_ips.txt' \
+    --execution-date "{{ ds }}" \
     --topic-name 'upbit_trade' \
     --num-partitions '0' \
     --gcs-name 'crypto-market-data-gcs' \
