@@ -69,7 +69,8 @@ orderbook_gcs_path = f"gs://{args.gcs_name}/raw-data/{args.gcs_save_path}/orderb
 trade_gcs_path = f"gs://{args.gcs_name}/raw-data/{args.gcs_save_path}/trade/processing_date={args.execution_date}/**/*.json"
 
 orderbook_df = spark.read.schema(orderbook_schema).json(orderbook_gcs_path) \
-                    .select("code", "timestamp", "orderbook_units")
+                    .select("code", "timestamp", "orderbook_units") \
+                    .withColumnRenamed("timestamp", "ob_timestamp")
 
 trade_df = spark.read.schema(trade_schema).json(trade_gcs_path) \
                 .select("code", "timestamp", "trade_price", "trade_volume", "ask_bid")
@@ -87,7 +88,7 @@ trade_dollar_bar_df = trade_cumsum_df.withColumn("dollar_bar_num",
                                     .drop("cumsum")
 
 
-trade_sampled_by_dollar_bar_df = \
+tr_sampled_by_dollar_bar_df = \
                     trade_dollar_bar_df.groupBy("code", "dollar_bar_num").agg(
                         func.last("timestamp").alias("timestamp"),
                         func.first("trade_price").alias("open"),
@@ -109,17 +110,24 @@ trade_sampled_by_dollar_bar_df = \
                     )
 
 join_condition = [
-    orderbook_df.code == trade_sampled_by_dollar_bar_df.code,
-    orderbook_df.timestamp <= trade_sampled_by_dollar_bar_df.timestamp,
+    orderbook_df.code == tr_sampled_by_dollar_bar_df.code,
+    orderbook_df.ob_timestamp <= tr_sampled_by_dollar_bar_df.timestamp,
+    orderbook_df.ob_timestamp >= tr_sampled_by_dollar_bar_df.timestamp - 1000 * 10
 ]
 
-tr_ob_joined_df = trade_sampled_by_dollar_bar_df.join(orderbook_df, 
+tr_ob_joined_df = tr_sampled_by_dollar_bar_df.join(orderbook_df, 
                                                       join_condition, "left")
 
 window_spec = Window.partitionBy("code", "dollar_bar_num") \
-                    .orderBy(col("timestamp").desc())
+                    .orderBy(col("ob_timestamp").desc())
 final_joined_df = tr_ob_joined_df.withColumn("row_num", func.row_number().over(window_spec)) \
                                 .filter(col("row_num") == 1) \
-                                .drop("row_num")
+                                .drop("row_num", "ob_timestamp") \
+                                .withColumn("processing_date", args.execute_date)
 
 
+final_joined_df.write \
+            .format("json") \
+            .option("path", f"gs://{args.gcs_name}/processed_data/{args.gcs_save_path}/") \
+            .partitionBy("processing_date", "code").mode("append").save()
+spark.stop()
