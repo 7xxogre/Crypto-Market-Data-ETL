@@ -92,7 +92,8 @@ if start_offset < end_offset:
 
     transformed_df = df.selectExpr("CAST(value AS STRING)") \
                         .select(from_json(col("value"), schema).alias("data"))
-    date_df = transformed_df.withColumn("processing_date", current_date()).withColumn("code", col("data.code"))
+    date_df = transformed_df.withColumn("processing_date", args.execute_date) \
+                            .withColumn("code", col("data.code"))
 
     date_df.write \
         .format("json") \
