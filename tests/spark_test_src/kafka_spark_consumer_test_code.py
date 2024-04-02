@@ -86,25 +86,27 @@ transformed_trade_df = trade_df.selectExpr("CAST(value AS STRING)") \
                                 .select("data.code", "data.timestamp", "data.trade_timestamp", "data.trade_price", "data.trade_volume", "data.ask_bid", "data.arrive_time")
 
 date_orderbook_df = transformed_orderbook_df.withColumn("time_diff", col("arrive_time") - col("timestamp") / 1000) \
-                                            .withColumn("timestamp", to_timestamp(from_unixtime(col("timestamp") / 1000)))
+                                            .withColumn("server_datetime", to_timestamp(from_unixtime(col("timestamp") / 1000)))
 date_trade_df = transformed_trade_df.withColumn("time_diff", col("arrive_time") - col("timestamp") / 1000) \
-                                    .withColumn("timestamp", to_timestamp(from_unixtime(col("timestamp") / 1000)))
+                                    .withColumn("server_datetime", to_timestamp(from_unixtime(col("timestamp") / 1000)))
 
-processed_ob_df = date_orderbook_df.withWatermark("timestamp", "10 second") \
-                                    .groupBy(window(col("timestamp"), "10 second"), "code").agg(
+processed_ob_df = date_orderbook_df.withWatermark("server_datetime", "10 second") \
+                                    .groupBy(window(col("server_datetime"), "10 second"), "code").agg(
                                         func.expr("last(orderbook_units[0].ask_price) as ask_price"),
                                         func.expr("last(orderbook_units[0].bid_price) as bid_price"),
-                                        func.last(col("timestamp")).alias("upbit_server_time"),
+                                        func.last(col("server_datetime")).alias("server_datetime"),
+                                        func.last(col("timestamp")).alias("server_time"),
                                         func.last(col("arrive_time")).alias("arrive_time"),
                                         func.mean(col("time_diff")).alias("time_diff")
                                     )
-processed_tr_df = date_trade_df.withWatermark("timestamp", "10 second") \
-                                .groupBy(window(col("timestamp"), "10 second"), "code").agg(
+processed_tr_df = date_trade_df.withWatermark("server_datetime", "10 second") \
+                                .groupBy(window(col("server_datetime"), "10 second"), "code").agg(
                                     func.first(col("trade_price")).alias("open"),
                                     func.max(col("trade_price")).alias("high"),
                                     func.min(col("trade_price")).alias("low"),
                                     func.last(col("trade_price")).alias("close"),
-                                    func.last(col("timestamp")).alias("upbit_server_time"),
+                                    func.last(col("server_datetime")).alias("server_datetime"),
+                                    func.last(col("timestamp")).alias("server_time"),
                                     func.last(col("trade_timestamp")).alias("trade_time"),
                                     func.sum(col("trade_volume")).alias("total_trade_volume"),
                                     func.sum(func.when(col("ask_bid") == "ASK", col("trade_volume")).otherwise(0)).alias("total_ask_volume"),
@@ -112,7 +114,6 @@ processed_tr_df = date_trade_df.withWatermark("timestamp", "10 second") \
                                     func.last(col("arrive_time")).alias("arrive_time"),
                                     func.mean(col("time_diff")).alias("time_diff")
                                 )
-
 
 
 query1 = processed_ob_df.writeStream.outputMode("append") \
