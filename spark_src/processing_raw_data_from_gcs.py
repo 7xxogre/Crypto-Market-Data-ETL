@@ -68,17 +68,25 @@ trade_schema = load_schema("upbit_trade")
 orderbook_gcs_path = f"gs://{args.gcs_name}/raw-data/{args.gcs_save_path}/orderbook/processing_date={args.execution_date}/**/*.json"
 trade_gcs_path = f"gs://{args.gcs_name}/raw-data/{args.gcs_save_path}/trade/processing_date={args.execution_date}/**/*.json"
 
-orderbook_df = spark.read.schema(orderbook_schema).json(orderbook_gcs_path)
+orderbook_df = spark.read.schema(orderbook_schema).json(orderbook_gcs_path) \
+                    .select("code", "timestamp", "orderbook_units")
 
-trade_df = spark.read.schema(trade_schema).json(trade_gcs_path)
+trade_df = spark.read.schema(trade_schema).json(trade_gcs_path) \
+                .select("code", "timestamp", "trade_price", "trade_volume", "ask_bid")
+
 trade_dollar_df = trade_df.withColumn("trade_dollar",
                                       col("trade_volume") * col("trade_price")) \
                         .orderBy(col("code"), col("timestamp"))
+
 window = Window.partitionBy("code").orderBy("timestamp")
 trade_cumsum_df = trade_dollar_df.withColumn("cumsum", 
-                                             sum("trade_dollar").over(window))
-trade_dollar_bar_df = trade_cumsum_df.withColumn("dollar_bar",
-                                        col("cumsum") // args.dollar_bar_size)
+                                             sum("trade_dollar").over(window)) \
+                                .drop("trade_dollar")
+trade_dollar_bar_df = trade_cumsum_df.withColumn("dollar_bar_num",
+                                        col("cumsum") // args.dollar_bar_size) \
+                                    .drop("cumsum")
+
+
 trade_sampled_by_dollar_bar_df = \
                     trade_dollar_bar_df.groupBy("code", "dollar_bar_num").agg(
                         func.last("timestamp").alias("timestamp"),
@@ -87,6 +95,31 @@ trade_sampled_by_dollar_bar_df = \
                         func.min("trade_price").alias("low"),
                         func.last("trade_price").alias("close"),
                         func.sum("trade_dollar").alias("trade_dollar"),
-                        func.sum("trade_volume").alias("trade_volume")
+                        func.sum("trade_volume").alias("trade_volume"),
+                        func.sum(
+                            func.when(
+                                col("ask_bid") == "ASK", col("trade_volume")
+                            ).otherwise(0)
+                        ).alias("ask_trade_volume"),
+                        func.sum(
+                            func.when(
+                                col("ask_bid") == "BID", col("trade_volume")
+                            ).otherwise(0)
+                        ).alias("bid_trade_volume")
                     )
+
+join_condition = [
+    orderbook_df.code == trade_sampled_by_dollar_bar_df.code,
+    orderbook_df.timestamp <= trade_sampled_by_dollar_bar_df.timestamp,
+]
+
+tr_ob_joined_df = trade_sampled_by_dollar_bar_df.join(orderbook_df, 
+                                                      join_condition, "left")
+
+window_spec = Window.partitionBy("code", "dollar_bar_num") \
+                    .orderBy(col("timestamp").desc())
+final_joined_df = tr_ob_joined_df.withColumn("row_num", func.row_number().over(window_spec)) \
+                                .filter(col("row_num") == 1) \
+                                .drop("row_num")
+
 
