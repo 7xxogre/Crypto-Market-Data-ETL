@@ -2,6 +2,8 @@ from airflow import DAG
 import pendulum
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
+# spark submit이 airflow에서 작동을 안해서 안씀!
+
 default_args = {
     'start_date': pendulum.datetime(2024, 3, 21),
     'depends_on_past': False,
