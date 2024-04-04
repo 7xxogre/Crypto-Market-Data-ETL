@@ -82,8 +82,8 @@ search_upbit_orderbook_offset_task = PythonOperator(
     dag=dag,
 )
 
-gcs_name = ""
-dataproc_cluster_name = ""
+gcs_name = "my_gcs"
+dataproc_cluster_name = "dataproc_name"
 region = "asia-northeast3"
 upbit_orderbook_spark_submit_command = f"""
 gcloud dataproc jobs submit pyspark \

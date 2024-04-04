@@ -14,6 +14,8 @@ dag = DAG("dags_spark_submit_batch_kafka_to_gcs",
           schedule_interval="0 0 * * *",
           catchup=False)
 
+gcs_name = 'my-gcs-name'
+
 spark_job = SparkSubmitOperator(
     task_id="spark_batch_operator_for_kafka_to_gcs",
     application="/home/bestech49/airflow-docker/plugins/spark_funcs/kafka_to_gcs_by_spark_batch.py",
@@ -22,7 +24,7 @@ spark_job = SparkSubmitOperator(
         '--kafka-bootstrap-server-list-name', 'kafka_broker_ips.txt',
         '--topic-name', 'upbit_orderbook',
         '--num_partitions', '0',
-        '--gcs-name', 'crypto-market-data-gcs',
+        '--gcs-name', gcs_name,
         '--gcs-save-path', 'upbit/orderbook',
         '--app-name', 'upbit-orderbook-save-to-gcs'
     ],
