@@ -125,34 +125,36 @@ processed_tr_df = date_tr_df.withWatermark("server_datetime", "10 second") \
                     func.mean(col("time_diff")).alias("time_diff")
                 )
 
+def make_json_df(df):
+    return df.select(
+                func.to_json(func.struct(*df.columns)
+            ).alias('value'))
 
-json_ob_df = processed_ob_df.select(
-                    func.to_json(func.struct(*processed_ob_df.columns)
-                 ).alias('value'))
-json_tr_df = processed_tr_df.select(
-                    func.to_json(func.struct(*processed_tr_df.columns)
-                 ).alias('value'))
+def make_send_data_to_kafka_query(df, kafka_bootstrap_servers: list, 
+                                  send_topic: str, checkpoint_loc: str, 
+                                  processing_interval_second: int):
+    json_df = make_json_df(df)
+    query = json_df.writeStream \
+                .format("kafka") \
+                .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
+                .option("topic", send_topic) \
+                .option("checkpointLocation", checkpoint_loc) \
+                .trigger(processingTime=f"{processing_interval_second} second") \
+                .start()
+    return query
+
 
 ob_processed_topic = "processed_upbit_orderbook"
 ob_chackpoint_loc = "/path/to/checkpoint/upbit_ob_with_arrive_time"
-ob_query = json_ob_df.writeStream \
-                .format("kafka") \
-                .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
-                .option("topic", ob_processed_topic) \
-                .option("checkpointLocation", ob_chackpoint_loc) \
-                .trigger(processingTime = "10 seconds") \
-                .start()
+ob_query = make_send_data_to_kafka_query(processed_ob_df, kafka_bootstrap_servers,
+                                         ob_processed_topic, ob_chackpoint_loc,
+                                         10)
 
 tr_processed_topic = "processed_upbit_trade"
 tr_chackpoint_loc = "/path/to/checkpoint/upbit_tr_with_arrive_time"
-tr_query = json_tr_df.writeStream \
-                .format("kafka") \
-                .option("kafka.bootstrap.servers", kafka_bootstrap_servers) \
-                .option("topic", tr_processed_topic) \
-                .option("checkpointLocation", tr_chackpoint_loc) \
-                .trigger(processingTime = "10 seconds") \
-                .start()
-
+tr_query = make_send_data_to_kafka_query(processed_tr_df, kafka_bootstrap_servers,
+                                         tr_processed_topic, tr_chackpoint_loc,
+                                         10)
 
 
 def awaitTermination(query):
