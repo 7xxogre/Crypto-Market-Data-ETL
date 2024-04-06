@@ -20,6 +20,7 @@ def load_schema(schema_name: str) -> StructType:
     if schema_name not in ['upbit_trade', 'upbit_orderbook']:
         raise Exception("topic name이 적절하지 않습니다. \
                         [upbit_trade, upbit_orderbook] 중에 있어야합니다.")
+    
     if "upbit_trade" == schema_name:
         return StructType([
             StructField("type", StringType(), True),
