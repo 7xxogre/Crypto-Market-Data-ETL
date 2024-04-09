@@ -52,7 +52,8 @@ import json
 from kafka_producer import KafkaProducerWrapper
 ob_topic_name = "upbit_orderbook"
 tr_topic_name = "upbit_trade"
-brokers = ["ip1:9092", "ip2:9092", "ip3:9092"]
+with open("./kafka_broker_ips.txt", "r") as f:
+    brokers = [line.strip() for line in f.readlines()]
 
 ob_producer = KafkaProducerWrapper(
     brokers,
