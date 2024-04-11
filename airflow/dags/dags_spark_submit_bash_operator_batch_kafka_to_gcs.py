@@ -95,7 +95,7 @@ gcloud dataproc jobs submit pyspark \
     --execution-date "{{ execution_date.strftime('%Y-%m-%d %H:%M:%S') }}" \
     --kafka-bootstrap-server-list-file-name 'kafka_broker_ips.txt' \
     --topic-name 'upbit_orderbook' \
-    --num-partitions '0' \
+    --partition-num '0' \
     --gcs-name '{gcs_name}' \
     --gcs-save-path 'upbit/orderbook' \
     --app-name 'upbit-orderbook-save-to-gcs' \
@@ -130,8 +130,8 @@ gcloud dataproc jobs submit pyspark \
     --execution-date "{{ execution_date.strftime('%Y-%m-%d %H:%M:%S') }}" \
     --kafka-bootstrap-server-list-file-name 'kafka_broker_ips.txt' \
     --topic-name 'upbit_trade' \
-    --num-partitions '0' \
-    --gcs-name 'crypto-market-data-gcs' \
+    --partition-num '0' \
+    --gcs-name '{gcs_name}' \
     --gcs-save-path 'upbit/trade' \
     --app-name 'upbit-trade-save-to-gcs' \
     --kafka-start-offset "{{ task_instance.xcom_pull(task_ids='search_kafka_upbit_trade_offset', key='kafka_start_offsets') }}" \
