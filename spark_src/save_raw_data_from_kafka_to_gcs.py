@@ -1,11 +1,46 @@
 import argparse
-import json
-import pickle
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import from_json, col, current_date
+from pyspark.sql.functions import from_json, col
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, LongType, DoubleType, ArrayType
-from datetime import timedelta
 from google.cloud import storage
+
+# 전역 스키마 정의
+UPBIT_TRADE_SCHEMA = StructType([
+    StructField("type", StringType(), True),
+    StructField("code", StringType(), True),
+    StructField("timestamp", LongType(), True),
+    StructField("trade_date", StringType(), True),
+    StructField("trade_time", StringType(), True),
+    StructField("trade_timestamp", LongType(), True),
+    StructField("trade_price", DoubleType(), True),
+    StructField("trade_volume", DoubleType(), True),
+    StructField("ask_bid", StringType(), True),
+    StructField("prev_closing_price", DoubleType(), True),
+    StructField("change", StringType(), True),
+    StructField("change_price", DoubleType(), True),
+    StructField("sequential_id", LongType(), True),
+    StructField("stream_type", StringType(), True),
+    StructField("arrive_time", DoubleType(), True)
+])
+
+UPBIT_ORDERBOOK_UNIT_SCHEMA = StructType([
+    StructField("ask_price", DoubleType(), True),
+    StructField("bid_price", DoubleType(), True),
+    StructField("ask_size", DoubleType(), True),
+    StructField("bid_size", DoubleType(), True),
+])
+
+UPBIT_ORDERBOOK_SCHEMA = StructType([
+    StructField("type", StringType(), True),
+    StructField("code", StringType(), True),
+    StructField("timestamp", LongType(), True),
+    StructField("total_ask_size", DoubleType(), True),
+    StructField("total_bid_size", DoubleType(), True),
+    StructField("orderbook_units", ArrayType(UPBIT_ORDERBOOK_UNIT_SCHEMA), True),
+    StructField("stream_type", StringType(), True),
+    StructField("level", IntegerType(), True),
+    StructField("arrive_time", DoubleType(), True)
+])
 
 def download_blob(bucket_name, source_blob_name):
     """GCS에서 파일 내용을 다운로드하고 출력합니다."""
@@ -19,50 +54,17 @@ def download_blob(bucket_name, source_blob_name):
     return contents.decode("utf-8").split()
 
 def load_schema(topic_name: str) -> StructType:
-    if "upbit_trade" == topic_name:
-        return StructType([
-            StructField("type", StringType(), True),
-            StructField("code", StringType(), True),
-            StructField("timestamp", LongType(), True),
-            StructField("trade_date", StringType(), True),
-            StructField("trade_time", StringType(), True),
-            StructField("trade_timestamp", LongType(), True),
-            StructField("trade_price", DoubleType(), True),
-            StructField("trade_volume", DoubleType(), True),
-            StructField("ask_bid", StringType(), True),
-            StructField("prev_closing_price", DoubleType(), True),
-            StructField("change", StringType(), True),
-            StructField("change_price", DoubleType(), True),
-            StructField("sequential_id", LongType(), True),
-            StructField("stream_type", StringType(), True),
-            StructField("arrive_time", DoubleType(), True)
-        ])
-    
-    if "upbit_orderbook" == topic_name:
-        upbitOrderbookUnitSchema = StructType([
-            StructField("ask_price", DoubleType(), True),
-            StructField("bid_price", DoubleType(), True),
-            StructField("ask_size", DoubleType(), True),
-            StructField("bid_size", DoubleType(), True),
-        ])
-        
-        return StructType([
-            StructField("type", StringType(), True),
-            StructField("code", StringType(), True),
-            StructField("timestamp", LongType(), True),
-            StructField("total_ask_size", DoubleType(), True),
-            StructField("total_bid_size", DoubleType(), True),
-            StructField("orderbook_units", ArrayType(upbitOrderbookUnitSchema), True),
-            StructField("stream_type", StringType(), True),
-            StructField("level", IntegerType(), True),
-            StructField("arrive_time", DoubleType(), True)
-        ])
-
+    if topic_name == "upbit_trade":
+        return UPBIT_TRADE_SCHEMA
+    elif topic_name == "upbit_orderbook":
+        return UPBIT_ORDERBOOK_SCHEMA
+    else:
+        raise Exception(f"{topic_name}에 맞는 schema를 찾지 못했습니다.")
 
 parser = argparse.ArgumentParser(description='Spark job arguments')
 parser.add_argument('--kafka-bootstrap-server-list-file-name', required=True, type=str, help='Kafka broker ip list file')
 parser.add_argument('--topic-name', required=True, type=str, help='Kafka topic name')
-parser.add_argument('--num-partitions', required=True, type=int, help='Number of partitions')
+parser.add_argument('--partition-num', required=True, type=int, help='Number of partition')
 parser.add_argument('--execution-date', required=True, type=str, help='Airflow task execution date')
 parser.add_argument('--gcs-name', required=True, type=str, help='Google Cloud Storage name')
 parser.add_argument('--gcs-save-path', required=True, type=str, help='Google Cloud Storage save path')
@@ -92,7 +94,7 @@ if start_offset < end_offset:
 
     transformed_df = df.selectExpr("CAST(value AS STRING)") \
                         .select(from_json(col("value"), schema).alias("data"))
-    date_df = transformed_df.withColumn("processing_date", args.execute_date) \
+    date_df = transformed_df.withColumn("processing_date", args.execution_date) \
                             .withColumn("code", col("data.code"))
 
     date_df.write \
@@ -101,3 +103,5 @@ if start_offset < end_offset:
         .partitionBy("processing_date", "code").mode("append") \
         .save()
     spark.stop()
+else:
+    raise Exception(f"start_offset이 endoffset보다 작지 않습니다! start: {start_offset} end: {end_offset}")
