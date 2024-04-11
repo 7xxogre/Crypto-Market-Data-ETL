@@ -94,7 +94,6 @@ gcloud dataproc jobs submit pyspark \
     -- \
     --execution-date "{{ execution_date.strftime('%Y-%m-%d %H:%M:%S') }}" \
     --kafka-bootstrap-server-list-file-name 'kafka_broker_ips.txt' \
-    --execution-date "{{ ds }}" \
     --topic-name 'upbit_orderbook' \
     --num-partitions '0' \
     --gcs-name '{gcs_name}' \
@@ -130,7 +129,6 @@ gcloud dataproc jobs submit pyspark \
     -- \
     --execution-date "{{ execution_date.strftime('%Y-%m-%d %H:%M:%S') }}" \
     --kafka-bootstrap-server-list-file-name 'kafka_broker_ips.txt' \
-    --execution-date "{{ ds }}" \
     --topic-name 'upbit_trade' \
     --num-partitions '0' \
     --gcs-name 'crypto-market-data-gcs' \
