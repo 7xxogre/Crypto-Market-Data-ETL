@@ -6,13 +6,16 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType, 
 import threading
 
 """ 
+kafka의 streaming 데이터를 받아서 처리 후 다시 kafka로 보내는 코드
+이 후 Apache Druid와 같은 DB로 받을 예정.
+
 spark-submit \
 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
 --conf spark.shuffle.service.enabled=true \
 --conf spark.dynamicAllocation.enabled=true \
 --conf spark.dynamicAllocation.initialExecutors=1 \
 --conf spark.dynamicAllocation.minExecutors=1 \
---conf spark.dynamicAllocation.maxExecutors=3
+--conf spark.dynamicAllocation.maxExecutors=3 \
 kafka_to_kafka_by_spark_for_druid.py
 """
 with open("./kafka_broker_ips.txt", 'r') as f:
