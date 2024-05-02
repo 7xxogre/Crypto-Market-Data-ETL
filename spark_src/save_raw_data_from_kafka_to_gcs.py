@@ -88,19 +88,18 @@ if start_offset < end_offset:
             .format("kafka") \
             .option("kafka.bootstrap.servers", kafka_bootstrap_servers_str) \
             .option("subscribe", args.topic_name) \
-            .option("startingOffsets", f"""{{"{args.topic_name}":{{"{args.num_partitions}":{start_offset}}}}}""") \
-            .option("endingOffsets", f"""{{"{args.topic_name}":{{"{args.num_partitions}":{end_offset}}}}}""") \
+            .option("startingOffsets", f"""{{"{args.topic_name}":{{"{args.partition_num}":{start_offset}}}}}""") \
+            .option("endingOffsets", f"""{{"{args.topic_name}":{{"{args.partition_num}":{end_offset}}}}}""") \
             .load()
 
     transformed_df = df.selectExpr("CAST(value AS STRING)") \
                         .select(from_json(col("value"), schema).alias("data"))
-    date_df = transformed_df.withColumn("processing_date", args.execution_date) \
-                            .withColumn("code", col("data.code"))
+    date_df = transformed_df.withColumn("code", col("data.code"))
 
     date_df.write \
         .format("json") \
-        .option("path", f"gs://{args.gcs_name}/raw-data/{args.gcs_save_path}/") \
-        .partitionBy("processing_date", "code").mode("append") \
+        .option("path", f"gs://{args.gcs_name}/raw-data/{args.gcs_save_path}/{args.execution_date}") \
+        .partitionBy("code").mode("append") \
         .save()
     spark.stop()
 else:

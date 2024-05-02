@@ -15,7 +15,10 @@ spark-submit \
 --conf spark.dynamicAllocation.maxExecutors=3
 kafka_to_kafka_by_spark_for_druid.py
 """
-kafka_bootstrap_servers = "34.64.107.102:9092,34.22.77.51:9092,34.64.167.7:9092"
+with open("./kafka_broker_ips.txt", 'r') as f:
+    kafka_bootstrap_servers = [s.replace('\n', '') for s in f.readlines()]
+    kafka_bootstrap_servers = ','.join(kafka_bootstrap_servers)
+print(f"kafka bootstrap server ips: {kafka_bootstrap_servers}")
 upbit_orderbook_topic = "upbit_orderbook"
 upbit_trade_topic = "upbit_trade"
 
