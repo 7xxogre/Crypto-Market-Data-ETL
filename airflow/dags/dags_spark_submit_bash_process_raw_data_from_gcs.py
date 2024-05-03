@@ -35,8 +35,9 @@ gcloud dataproc jobs submit pyspark \
     -- \
     --kafka-bootstrap-server-list-file-name 'kafka_broker_ips.txt' \
     --gcs-name '{gcs_name}'""" + """\
-    --execution-date "{{ execution_date.strftime('%Y-%m-%d %H:%M:%S') }}" \
+    --execution-date "{{ execution_date.strftime('%Y-%m-%d') }}" \
     --gcs-save-path 'upbit/orderbook' \
+    --dollar-bar-size 3000000 \
     --app-name 'upbit-data-preprocessing-from-gcs-to-gcs'
     """
 
