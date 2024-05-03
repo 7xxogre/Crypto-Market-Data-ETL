@@ -33,10 +33,9 @@ gcloud dataproc jobs submit pyspark \
     --region={region} \
     --properties  spark.dynamicAllocation.enabled=true,spark.shuffle.service.enabled=true,spark.dynamicAllocation.initialExecutors=1,spark.dynamicAllocation.minExecutors=1,spark.dynamicAllocation.maxExecutors=3 \
     -- \
-    --execution-date "{{ execution_date.strftime('%Y-%m-%d %H:%M:%S') }}" \
     --kafka-bootstrap-server-list-file-name 'kafka_broker_ips.txt' \
-    --execution-date "{{ ds }}" \
-    --gcs-name '{gcs_name}' \
+    --gcs-name '{gcs_name}'""" + """\
+    --execution-date "{{ execution_date.strftime('%Y-%m-%d %H:%M:%S') }}" \
     --gcs-save-path 'upbit/orderbook' \
     --app-name 'upbit-data-preprocessing-from-gcs-to-gcs'
     """
