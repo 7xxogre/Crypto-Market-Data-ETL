@@ -88,7 +88,7 @@ search_upbit_orderbook_offset_task = PythonOperator(
     dag=dag,
 )
 
-upbit_orderbook_spark_submit_command = f"""
+upbit_orderbook_spark_submit_command = """
 gcloud dataproc jobs submit pyspark \
     gs://{gcs_name}/kafka_to_gcs_by_spark_batch.py \
     --cluster={dataproc_cluster_name} \
@@ -101,6 +101,7 @@ gcloud dataproc jobs submit pyspark \
     --gcs-name '{gcs_name}' \
     --gcs-save-path 'upbit/orderbook' \
     --app-name 'upbit-orderbook-save-to-gcs' \
+    """ + """
     --kafka-start-offset "{{ task_instance.xcom_pull(task_ids='search_kafka_upbit_orderbook_offset', key='kafka_start_offsets') }}" \
     --kafka-end-offset "{{ task_instance.xcom_pull(task_ids='search_kafka_upbit_orderbook_offset', key='kafka_end_offsets') }}"
     """
@@ -135,6 +136,7 @@ gcloud dataproc jobs submit pyspark \
     --gcs-name '{gcs_name}' \
     --gcs-save-path 'upbit/trade' \
     --app-name 'upbit-trade-save-to-gcs' \
+    """ + """
     --kafka-start-offset "{{ task_instance.xcom_pull(task_ids='search_kafka_upbit_trade_offset', key='kafka_start_offsets') }}" \
     --kafka-end-offset "{{ task_instance.xcom_pull(task_ids='search_kafka_upbit_trade_offset', key='kafka_end_offsets') }}"
     """
