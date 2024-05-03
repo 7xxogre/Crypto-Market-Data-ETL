@@ -95,13 +95,12 @@ gcloud dataproc jobs submit pyspark \
     --region={region} \
     --properties  spark.dynamicAllocation.enabled=true,spark.shuffle.service.enabled=true,spark.dynamicAllocation.initialExecutors=1,spark.dynamicAllocation.minExecutors=1,spark.dynamicAllocation.maxExecutors=3,spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
     -- \
-    --execution-date "{{ execution_date.strftime('%Y-%m-%d %H:%M:%S') }}" \
     --kafka-bootstrap-server-list-file-name 'kafka_broker_ips.txt' \
     --topic-name 'upbit_orderbook' \
     --gcs-name '{gcs_name}' \
     --gcs-save-path 'upbit/orderbook' \
-    --app-name 'upbit-orderbook-save-to-gcs' \
-    """ + """
+    --app-name 'upbit-orderbook-save-to-gcs'""" + """ \
+    --execution-date "{{ execution_date.strftime('%Y-%m-%d') }}" \
     --kafka-start-offset "{{ task_instance.xcom_pull(task_ids='search_kafka_upbit_orderbook_offset', key='kafka_start_offsets') }}" \
     --kafka-end-offset "{{ task_instance.xcom_pull(task_ids='search_kafka_upbit_orderbook_offset', key='kafka_end_offsets') }}"
     """
@@ -130,13 +129,12 @@ gcloud dataproc jobs submit pyspark \
     --region={region} \
     --properties spark.dynamicAllocation.enabled=true,spark.shuffle.service.enabled=true,spark.dynamicAllocation.initialExecutors=1,spark.dynamicAllocation.minExecutors=1,spark.dynamicAllocation.maxExecutors=3,spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
     -- \
-    --execution-date "{{ execution_date.strftime('%Y-%m-%d %H:%M:%S') }}" \
     --kafka-bootstrap-server-list-file-name 'kafka_broker_ips.txt' \
     --topic-name 'upbit_trade' \
     --gcs-name '{gcs_name}' \
     --gcs-save-path 'upbit/trade' \
-    --app-name 'upbit-trade-save-to-gcs' \
-    """ + """
+    --app-name 'upbit-trade-save-to-gcs'""" + """\
+    --execution-date "{{ execution_date.strftime('%Y-%m-%d') }}" \
     --kafka-start-offset "{{ task_instance.xcom_pull(task_ids='search_kafka_upbit_trade_offset', key='kafka_start_offsets') }}" \
     --kafka-end-offset "{{ task_instance.xcom_pull(task_ids='search_kafka_upbit_trade_offset', key='kafka_end_offsets') }}"
     """
