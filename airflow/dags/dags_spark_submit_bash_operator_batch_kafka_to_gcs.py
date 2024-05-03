@@ -5,6 +5,8 @@ from airflow.operators.python_operator import PythonOperator
 from google.cloud import storage
 from kafka import KafkaConsumer, TopicPartition
 
+# 이 dag로 kafka 데이터를 gcs로 저장.
+
 def download_blob(bucket_name, source_blob_name):
     """GCS에서 파일 내용을 다운로드하고 출력합니다."""
     storage_client = storage.Client()
@@ -95,7 +97,6 @@ gcloud dataproc jobs submit pyspark \
     --execution-date "{{ execution_date.strftime('%Y-%m-%d %H:%M:%S') }}" \
     --kafka-bootstrap-server-list-file-name 'kafka_broker_ips.txt' \
     --topic-name 'upbit_orderbook' \
-    --partition-num '0' \
     --gcs-name '{gcs_name}' \
     --gcs-save-path 'upbit/orderbook' \
     --app-name 'upbit-orderbook-save-to-gcs' \
@@ -120,17 +121,16 @@ search_upbit_trade_offset_task = PythonOperator(
     dag=dag,
 )
 
-upbit_trade_spark_submit_command = """
+upbit_trade_spark_submit_command = f"""
 gcloud dataproc jobs submit pyspark \
     gs://crypto-market-data-gcs/kafka_to_gcs_by_spark_batch.py \
-    --cluster=spark-airflow \
-    --region=asia-northeast3 \
+    --cluster={dataproc_cluster_name} \
+    --region={region} \
     --properties spark.dynamicAllocation.enabled=true,spark.shuffle.service.enabled=true,spark.dynamicAllocation.initialExecutors=1,spark.dynamicAllocation.minExecutors=1,spark.dynamicAllocation.maxExecutors=3,spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
     -- \
     --execution-date "{{ execution_date.strftime('%Y-%m-%d %H:%M:%S') }}" \
     --kafka-bootstrap-server-list-file-name 'kafka_broker_ips.txt' \
     --topic-name 'upbit_trade' \
-    --partition-num '0' \
     --gcs-name '{gcs_name}' \
     --gcs-save-path 'upbit/trade' \
     --app-name 'upbit-trade-save-to-gcs' \
@@ -144,40 +144,3 @@ upbit_trade_submit_pyspark_job = BashOperator(
 )
 
 search_upbit_orderbook_offset_task >> upbit_orderbook_submit_pyspark_job >> search_upbit_trade_offset_task >> upbit_trade_submit_pyspark_job
-
-# from airflow import DAG
-# from airflow.operators.bash_operator import BashOperator
-# import pendulum
-
-# default_args = {
-#     'start_date': pendulum.datetime(2024, 3, 21),
-#     'depends_on_past': False,
-# }
-
-# dag = DAG(
-#     "dags_spark_submit_bash_operator_batch_kafka_to_gcs",
-#     default_args=default_args,
-#     schedule_interval="*/5 * * * *",
-#     catchup=False
-# )
-
-# spark_submit_command = """
-# spark-submit \
-#     --master yarn \
-#     --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
-#     /home/bestech49/airflow-docker/plugins/spark_funcs/kafka_to_gcs_by_spark_batch.py \
-#     --execution-date "{{ ds }}" \
-#     --kafka-bootstrap-server-list-path '/home/bestech49/kafka_broker_ips.txt' \
-#     --topic-name 'upbit_orderbook' \
-#     --num_partitions '0' \
-#     --schema-path '/home/bestech49/airflow-docker/plugins/files/schemas/upbit_orderbook.json' \
-#     --gcs-name 'crypto-market-data-gcs' \
-#     --gcs-save-path 'upbit/orderbook' \
-#     --app-name 'upbit-orderbook-save-to-gcs'
-# """
-# print(spark_submit_command)
-# spark_job = BashOperator(
-#     task_id="spark_batch_operator_for_kafka_to_gcs",
-#     bash_command=spark_submit_command,
-#     dag=dag,
-# )
