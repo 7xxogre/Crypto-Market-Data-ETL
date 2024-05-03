@@ -1,7 +1,7 @@
 import argparse
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, Window
 import pyspark.sql.functions as func
-from pyspark.sql.functions import col, Window, col
+from pyspark.sql.functions import col
 from pyspark.sql.types import StructType, StructField, StringType, LongType, \
                                 IntegerType, DoubleType, ArrayType
 """
