@@ -73,20 +73,21 @@ dag = DAG(
     catchup=False,
 )
 
+gcs_name = "my_gcs"
+dataproc_cluster_name = "dataproc_name"
+region = "asia-northeast3"
+
 search_upbit_orderbook_offset_task = PythonOperator(
     task_id='search_kafka_upbit_orderbook_offset',
     provide_context=True,
     python_callable=kafka_offset_search,
     op_kwargs={'topic_name': 'upbit_orderbook',
                'num_partitions': 0,
-               'gcs_name': 'crypto-market-data-gcs',
+               'gcs_name': gcs_name,
                'kafka_bootstrap_server_list_file_name': 'kafka_broker_ips.txt'},
     dag=dag,
 )
 
-gcs_name = "my_gcs"
-dataproc_cluster_name = "dataproc_name"
-region = "asia-northeast3"
 upbit_orderbook_spark_submit_command = f"""
 gcloud dataproc jobs submit pyspark \
     gs://{gcs_name}/kafka_to_gcs_by_spark_batch.py \
@@ -116,14 +117,14 @@ search_upbit_trade_offset_task = PythonOperator(
     python_callable=kafka_offset_search,
     op_kwargs={'topic_name': 'upbit_trade',
                'num_partitions': 0,
-               'gcs_name': 'crypto-market-data-gcs',
+               'gcs_name': gcs_name,
                'kafka_bootstrap_server_list_file_name': 'kafka_broker_ips.txt'},
     dag=dag,
 )
 
 upbit_trade_spark_submit_command = f"""
 gcloud dataproc jobs submit pyspark \
-    gs://crypto-market-data-gcs/kafka_to_gcs_by_spark_batch.py \
+    gs://{gcs_name}/kafka_to_gcs_by_spark_batch.py \
     --cluster={dataproc_cluster_name} \
     --region={region} \
     --properties spark.dynamicAllocation.enabled=true,spark.shuffle.service.enabled=true,spark.dynamicAllocation.initialExecutors=1,spark.dynamicAllocation.minExecutors=1,spark.dynamicAllocation.maxExecutors=3,spark.jars.packages=org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.2 \
