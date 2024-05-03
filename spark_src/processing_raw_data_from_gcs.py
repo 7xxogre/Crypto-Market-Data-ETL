@@ -93,6 +93,7 @@ parser.add_argument('--app-name', required=True, type=str, help='Spark app name'
 parser.add_argument('--dollar-bar-size', required=True, type=int, help='sampling dollar bar size')
 args = parser.parse_args()
 print("execution_date: ", args.execution_date)
+
 spark = SparkSession.builder.appName(args.app_name).getOrCreate()
 
 orderbook_df = get_raw_data_df_from_gcs("upbit_orderbook", args, "orderbook", spark) \
