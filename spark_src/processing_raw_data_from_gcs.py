@@ -77,10 +77,11 @@ def get_raw_data_df_from_gcs(schema_name: str, args: argparse.Namespace, folder_
                         folder_name은 ['orderbook', 'trade'] 내에 속해야 합니다.")
     
     schema = load_schema(schema_name)
-
+    wrapped_schema = StructType([
+        StructField("data", schema, True)
+    ])
     gcs_path = f"gs://{args.gcs_name}/raw-data/{args.gcs_save_path}/{folder_name}/processing_date={args.execution_date}/**/*.json"
-
-    df = spark.read.schema(schema).json(gcs_path)
+    df = spark.read.schema(wrapped_schema).json(gcs_path)
     return df
 
 
@@ -97,16 +98,17 @@ print("execution_date: ", args.execution_date)
 spark = SparkSession.builder.appName(args.app_name).getOrCreate()
 
 orderbook_df = get_raw_data_df_from_gcs("upbit_orderbook", args, "orderbook", spark) \
-                    .select("code", "timestamp", "orderbook_units") \
+                    .select("data.code", "data.timestamp", "data.orderbook_units") \
                     .withColumnRenamed("timestamp", "ob_timestamp")
 
 trade_df = get_raw_data_df_from_gcs("upbit_trade", args, "trade", spark)\
-                    .select("code", "timestamp", "trade_price", 
-                            "trade_volume", "ask_bid")
+                    .select("data.code", "data.timestamp", "data.trade_price", 
+                            "data.trade_volume", "data.ask_bid")
 
 trade_dollar_df = trade_df.withColumn("trade_dollar",
                                       col("trade_volume") * col("trade_price")) \
                         .orderBy(col("code"), col("timestamp"))
+
 
 window = Window.partitionBy("code").orderBy("timestamp")
 
@@ -143,6 +145,7 @@ join_condition = [
     orderbook_df.ob_timestamp <= tr_sampled_by_dollar_bar_df.timestamp,
     orderbook_df.ob_timestamp >= tr_sampled_by_dollar_bar_df.timestamp - 1000*10
 ]
+
 
 tr_ob_joined_df = tr_sampled_by_dollar_bar_df.join(orderbook_df, 
                                                       join_condition, "left") \
