@@ -1,7 +1,7 @@
 import argparse
 from pyspark.sql import SparkSession, Window
 import pyspark.sql.functions as func
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, floor, lit
 from pyspark.sql.types import StructType, StructField, StringType, LongType, \
                                 IntegerType, DoubleType, ArrayType
 """
@@ -77,7 +77,7 @@ def get_raw_data_df_from_gcs(schema_name: str, args: argparse.Namespace, folder_
                         folder_name은 ['orderbook', 'trade'] 내에 속해야 합니다.")
     
     schema = load_schema(schema_name)
-    last_date = datetime.(args.execution_date)
+
     gcs_path = f"gs://{args.gcs_name}/raw-data/{args.gcs_save_path}/{folder_name}/processing_date={args.execution_date}/**/*.json"
 
     df = spark.read.schema(schema).json(gcs_path)
@@ -111,13 +111,11 @@ trade_dollar_df = trade_df.withColumn("trade_dollar",
 window = Window.partitionBy("code").orderBy("timestamp")
 
 trade_cumsum_df = trade_dollar_df.withColumn("cumsum", 
-                                             sum("trade_dollar").over(window)) \
-                                .drop("trade_dollar")
+                                             func.sum("trade_dollar").over(window))
 
 trade_dollar_bar_df = trade_cumsum_df.withColumn("dollar_bar_num",
-                                        col("cumsum") // args.dollar_bar_size) \
+                                        floor(col("cumsum") / args.dollar_bar_size).cast(IntegerType())) \
                                     .drop("cumsum")
-
 
 tr_sampled_by_dollar_bar_df = \
                     trade_dollar_bar_df.groupBy("code", "dollar_bar_num").agg(
@@ -147,7 +145,8 @@ join_condition = [
 ]
 
 tr_ob_joined_df = tr_sampled_by_dollar_bar_df.join(orderbook_df, 
-                                                      join_condition, "left")
+                                                      join_condition, "left") \
+                                              .drop(orderbook_df["code"])
 
 window_spec = Window.partitionBy("code", "dollar_bar_num") \
                     .orderBy(col("ob_timestamp").desc())
@@ -155,7 +154,7 @@ window_spec = Window.partitionBy("code", "dollar_bar_num") \
 final_joined_df = tr_ob_joined_df.withColumn("row_num", func.row_number().over(window_spec)) \
                                 .filter(col("row_num") == 1) \
                                 .drop("row_num", "ob_timestamp") \
-                                .withColumn("processing_date", args.execute_date)
+                                .withColumn("processing_date", lit(args.execution_date))
 
 final_joined_df.write \
             .format("json") \
