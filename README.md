@@ -15,6 +15,8 @@
 ## 프로젝트 구성도
 ![image](https://github.com/7xxogre/Crypto-Market-Data-ETL/assets/61622859/96507216-d6f4-494d-a4ec-84b5568d3375)
 
+## Grafana 시각화 결과
+![Untitled](https://github.com/7xxogre/Crypto-Market-Data-ETL/assets/61622859/4f99683f-1532-4ef0-af08-ddcc0ae1be52)
 
 ## 진행 상황
 - 전반적인 기능들은 모두 구현을 완료
